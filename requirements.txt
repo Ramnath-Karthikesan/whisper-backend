@@ -16,5 +16,4 @@ visdom==0.1.8.9
 webrtcvad==2.0.10
 Flask==2.2.3
 openai-whisper
-soundfile
 flask_cors
