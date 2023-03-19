@@ -18,3 +18,5 @@ Flask==2.2.3
 openai-whisper
 flask_cors
 Gunicorn
+python-dotenv
+Pyrebase4
