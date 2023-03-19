@@ -5,7 +5,8 @@ from flask_cors import CORS, cross_origin
 import librosa
 import soundfile as sf
 # from preprocess_vcc2018 import preprocess_dataset
-# import os
+import os
+
 # import pickle
 # import numpy as np
 # from tqdm import tqdm
@@ -24,6 +25,11 @@ import soundfile as sf
 
 from demo_cli import whisper_to_audio
 import whisper
+from dotenv import load_dotenv
+import pyrebase
+
+load_dotenv()
+
 
 
 # class MaskCycleGANVCTesting(object):
@@ -134,8 +140,22 @@ import whisper
 app = Flask(__name__)
 cors = CORS(app)
 
+
 app.config['CORS_HEADERS'] = 'Content-Type'
 
+firebaseConfig = {
+  "apiKey": os.getenv('API_KEY'),
+  "authDomain": os.getenv('AUTH_DOMAIN'),
+  "projectId": os.getenv("PRJ_ID"),
+  "storageBucket": os.getenv("STR_BUCKET"),
+  "messagingSenderId": os.getenv("MSSG_ID"),
+  "appId": os.getenv("APP_ID"),
+  "measurementId": os.getenv("MEAS_ID"),
+  "databaseURL": os.getenv("DATA_URL"),
+}
+
+firebase = pyrebase.initialize_app(firebaseConfig)
+db = firebase.database()
 
 @app.route("/", methods=['GET'])
 def index():
@@ -152,6 +172,7 @@ def upload():
         x, sr = librosa.load('./testing/audio.wav')
         y = librosa.resample(x, sr, 16000)
         sf.write("./testing/audio.wav", y, 16000, subtype='PCM_16')
+        print(db.get())
         d['status'] = 1
     except Exception as e:
         print(f"Couldn't upload file {e}")
@@ -194,6 +215,72 @@ def whispers():
         print(f"Could not convert file {e}")
         d['data'] = 0
         return jsonify(d)
+    
+@app.route("/rating", methods=["POST"])
+@cross_origin()
+def rating():
+    d = {}
+    try:
+        name = request.form["name"]
+        rate1 = int(request.form['r1'])
+        rate2 = int(request.form['r2'])
+        rate3 = int(request.form['r3'])
+        rate4 = int(request.form['r4'])
+        rate5 = int(request.form['r5'])
+        rate6 = int(request.form['r6'])
+        data = {"name": name, "rate1":rate1, "rate2":rate2, "rate3":rate3, "rate4":rate4, "rate5":rate5, "rate6":rate6}
+        db.child("votes").push(data)
+        d["status"] = 1
+    except Exception as e:
+        print(f"Error recording data {e}")
+        d['status'] = 0
+    return jsonify(d)  
+
+@app.route("/getData", methods=['POST'])
+@cross_origin()
+def getData():
+    d = {}
+    no_of_users = 0
+    avgRate1 = 0
+    avgRate2 = 0
+    avgRate3 = 0
+    avgRate4 = 0
+    avgRate5 = 0
+    avgRate6 = 0
+    try:
+        if db.get().val() == None:
+            d['total_votes'] = no_of_users
+        else:
+            users = db.child("votes").get()
+            for user in users.each():
+                no_of_users += 1
+                rate_dict = user.val()
+                avgRate1 += rate_dict['rate1']
+                avgRate2 += rate_dict['rate2']
+                avgRate3 += rate_dict['rate3']
+                avgRate4 += rate_dict['rate4']
+                avgRate5 += rate_dict['rate5']
+                avgRate6 += rate_dict['rate6']
+            avgRate1 /= no_of_users
+            avgRate2 /= no_of_users
+            avgRate3 /= no_of_users
+            avgRate4 /= no_of_users
+            avgRate5 /= no_of_users
+            avgRate6 /= no_of_users
+            d['total_votes'] = no_of_users
+            d['avgRate1'] = round(avgRate1,1)
+            d['avgRate2'] = round(avgRate2,1)
+            d['avgRate3'] = round(avgRate3,1)
+            d['avgRate4'] = round(avgRate4,1)
+            d['avgRate5'] = round(avgRate5,1)
+            d['avgRate6'] = round(avgRate6,1)
+        d['status'] = 1
+    except Exception as e:
+        print(f"Error getting data {e}")
+        d['status'] = 0
+    return jsonify(d)  
+    
+     
 
     
 
