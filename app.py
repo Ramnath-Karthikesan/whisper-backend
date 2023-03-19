@@ -199,7 +199,7 @@ def upload():
 #         return jsonify(d)
 
 @app.route("/whisper", methods=['POST'])
-@cross_origin()
+@cross_origin(origins='*')
 def whispers():
     d = {}
     try:
